@@ -17,7 +17,7 @@ pub fn create_linear_layer(in_size: usize, out_size: usize) -> (Array2<f32>, Arr
     let weights: Array2<f32> = Array2::from_shape_fn((in_size, out_size), |(i, j)| {
         generate_gaussian(0.0, (2.0 / (in_size as f32)).sqrt())
     });
-    let bias: Array1<f32> = Array1::from_shape_fn(out_size, |i: usize| 0.0);
+    let bias: Array1<f32> = Array1::zeros(out_size);
 
     return (weights, bias);
 }
