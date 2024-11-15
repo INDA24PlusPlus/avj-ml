@@ -21,3 +21,10 @@ pub fn create_linear_layer(in_size: usize, out_size: usize) -> (Array2<f32>, Arr
 
     return (weights, bias);
 }
+// x = (B, T)
+// W = (T, W)
+// b = (T)
+pub fn linear(x: Array2<f32>, weights: Array2<f32>, bias: Array1<f32>) -> Array2<f32> {
+    let result = x.dot(&weights) + bias;
+    return result;
+}
