@@ -1,1 +1,1 @@
-pub fn cross_entropy() {}
+pub fn cross_entropy_loss() {}
