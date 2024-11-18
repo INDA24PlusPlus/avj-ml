@@ -68,7 +68,7 @@ pub fn one_hot_labels(labels: Array2<f32>) -> Array2<f32> {
 
 // Assume data is of dims: (N, D)
 // Return: (B, T) where B is batch_size
-pub fn get_batch(batch_size: i32, batch_num: i32, data: Array2<f32>) -> Array2<f32> {
+pub fn get_batch(batch_size: i32, batch_num: i32, data: &Array2<f32>) -> Array2<f32> {
     let start = batch_size * batch_num;
     let end = (batch_size * (batch_num + 1));
 
