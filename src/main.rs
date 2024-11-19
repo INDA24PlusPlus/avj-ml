@@ -14,5 +14,13 @@ use train::train_mlp;
 fn main() {
     let (train_data, train_labels, test_data, test_labels) = load_images();
 
-    train_mlp(11, 3, 0.001, train_data, train_labels);
+    train_mlp(
+        32,
+        3,
+        0.001,
+        train_data,
+        train_labels,
+        test_data,
+        test_labels,
+    );
 }

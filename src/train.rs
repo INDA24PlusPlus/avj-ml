@@ -1,10 +1,14 @@
 use ndarray::{
-    arr1, arr2, arr3, array, linalg::general_mat_mul, Array, Array1, Array2, Array3, ArrayD, Dim,
+    arr1, arr2, arr3, array, linalg::general_mat_mul, Array, Array1, Array2, Array3, ArrayD, Axis,
+    Dim,
 };
 
 use crate::{
-    dataset::get_batch,
-    functions::{activations::relu, loss::cross_entropy_loss},
+    dataset::{argmax, get_batch, get_batch_1d},
+    functions::{
+        activations::{relu, softmax},
+        loss::cross_entropy_loss,
+    },
     layers::layer::{create_linear_layer, linear},
 };
 
@@ -14,7 +18,6 @@ pub fn linear_backward(l: &mut Layer, gradient: &mut Array2<f32>, learning_rate:
     if l.input.is_none() {
         panic!("Layer needs to be forward passed before backwards pass can start");
     }
-
     let transposed_input = l.input.as_ref().unwrap().t().to_owned();
     let d_w = transposed_input.dot(gradient);
 
@@ -23,23 +26,14 @@ pub fn linear_backward(l: &mut Layer, gradient: &mut Array2<f32>, learning_rate:
     // Update weights and bias
     l.weights -= &(d_w * learning_rate);
     // Bias becomes a bit weird with dimensions
-    //l.bias -= &(&*gradient * learning_rate);
+    l.bias -= &(gradient.sum_axis(Axis(0)) * learning_rate);
     *gradient = d_x;
 }
 pub fn relu_backward(l: &mut Layer, gradient: &mut Array2<f32>) {
     let d_x = gradient.map(|x| if *x > 0.0 { 1.0 } else { 0.0 });
     *gradient = d_x;
 }
-pub fn cross_entropy_backwards(
-    inputs: Array2<f32>,
-    gradient: &mut Array2<f32>,
-    train_labels: Array2<f32>,
-) {
-    let ce_gradient =
-        Array2::from_shape_fn(inputs.dim(), |(i, j)| train_labels[[i, j]] / inputs[[i, j]]);
 
-    *gradient = ce_gradient;
-}
 // Fuse together cross entropy loss and softmax for calculating backwards, much easier that way
 pub fn ce_softmax_backward(
     softmax_output: &Array2<f32>,
@@ -64,24 +58,36 @@ struct Layer {
 }
 
 // TODO: optimize memory
-fn forward_pass(layers: &mut Vec<Layer>, data: &mut Array2<f32>) {
+fn forward_pass(layers: &mut Vec<Layer>, data: &mut Array2<f32>, in_training: bool) {
     for layer in layers.iter_mut() {
         match layer.layer_type {
             LayerType::LINEAR => {
                 // CLoning is very bad i know
-                layer.input = Some(data.clone());
+                if in_training {
+                    layer.input = Some(data.clone());
+                }
                 *data = linear(data.clone(), layer.weights.clone(), layer.bias.clone());
-                layer.output = Some(data.clone());
+                if in_training {
+                    layer.output = Some(data.clone());
+                }
             }
             LayerType::RELU => {
-                layer.input = Some(data.clone());
+                if in_training {
+                    layer.input = Some(data.clone());
+                }
                 *data = relu(data.clone());
-                layer.output = Some(data.clone());
+                if in_training {
+                    layer.output = Some(data.clone());
+                }
             }
             LayerType::SOFTMAX => {
-                layer.input = Some(data.clone());
-                *data = relu(data.clone());
-                layer.output = Some(data.clone());
+                if in_training {
+                    layer.input = Some(data.clone());
+                }
+                *data = softmax(data.clone());
+                if in_training {
+                    layer.output = Some(data.clone());
+                }
             }
         }
     }
@@ -151,21 +157,24 @@ pub fn train_mlp(
     learning_rate: f32,
     train_data: Array2<f32>,
     train_labels: Array2<f32>,
+    test_data: Array2<f32>,
+    test_labels: Array1<f32>,
 ) {
     let mut gradient: Array2<f32> = Array2::zeros((batch_size as usize, 10));
     let (l1, relu, l2, softmax) = initialize_mlp();
     let mut layers = vec![l1, relu, l2, softmax];
+    let batch_num = train_data.dim().0 as i32 / batch_size;
     for e in 0..epochs {
         println!("Epoch: {}", e);
-        for batch in 0..batch_size {
+        for batch in 0..batch_num {
             let mut batched_training_data = get_batch(batch_size, batch, &train_data);
             let batched_train_labels = get_batch(batch_size, batch, &train_labels);
 
             // forward pass
-            forward_pass(&mut layers, &mut batched_training_data);
+            forward_pass(&mut layers, &mut batched_training_data, true);
             let loss = cross_entropy_loss(&batched_training_data, &batched_train_labels);
-            println!("Training data output: {:?}", batched_training_data);
-            println!("Loss: {:?}", loss.unwrap());
+            //println!("Training data output: {:?}", batched_training_data);
+            println!("Loss: {:?}", loss.unwrap().sum() / batch_size as f32);
             // backward pass
             backward(
                 &mut layers,
@@ -175,4 +184,33 @@ pub fn train_mlp(
             );
         }
     }
+    evaluate(&mut layers, test_data, test_labels, batch_size);
+}
+
+pub fn evaluate(
+    layers: &mut Vec<Layer>,
+    test_data: Array2<f32>,
+    test_labels: Array1<f32>,
+    batch_size: i32,
+) {
+    let mut correct_predictions = 0;
+
+    let batch_num = test_data.dim().0 as i32 / batch_size;
+
+    for batch in 0..batch_num {
+        let mut batched_data = get_batch(batch_size, batch, &test_data);
+        let batched_labels = get_batch_1d(batch_size, batch, &test_labels);
+
+        forward_pass(layers, &mut batched_data, false);
+
+        for (index, row) in batched_data.rows().into_iter().enumerate() {
+            let prediction = argmax(&row.to_owned()).unwrap();
+
+            if prediction == batched_labels[index] as usize {
+                correct_predictions += 1;
+            }
+        }
+    }
+
+    println!("Correct predictions: {}", correct_predictions);
 }
