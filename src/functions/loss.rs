@@ -3,8 +3,8 @@ use ndarray::{Array1, Array2};
 // Predicted and reference: (B, D)
 // Output will be (B)
 pub fn cross_entropy_loss(
-    predicted: Array2<f32>,
-    reference: Array2<f32>,
+    predicted: &Array2<f32>,
+    reference: &Array2<f32>,
 ) -> Result<Array2<f32>, &'static str> {
     if predicted.dim() != reference.dim() {
         Err("Dims must match, got")
