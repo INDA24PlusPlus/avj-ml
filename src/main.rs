@@ -17,7 +17,7 @@ fn main() {
     train_mlp(
         32,
         3,
-        0.001,
+        0.009,
         train_data,
         train_labels,
         test_data,

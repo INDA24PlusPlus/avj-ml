@@ -8,10 +8,10 @@ pub fn softmax(data: Array2<f32>) -> Array2<f32> {
     let (B, _) = data.dim();
     let mut softmax_activations = data.clone();
     for i in 0..B {
-        println!("Softmax pre-activations {:?}", softmax_activations);
+        //println!("Softmax pre-activations {:?}", softmax_activations);
         let row_sum = data.row(i).map(|x| x.exp()).sum();
         let row_activation = data.row(i).map(|x| x.exp() / row_sum);
-        println!("Value of activations: {:?}", row_activation);
+        //println!("Value of activations: {:?}", row_activation);
         softmax_activations.row_mut(i).assign(&row_activation);
     }
 

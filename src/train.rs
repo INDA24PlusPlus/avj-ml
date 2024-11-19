@@ -19,19 +19,28 @@ pub fn linear_backward(l: &mut Layer, gradient: &mut Array2<f32>, learning_rate:
         panic!("Layer needs to be forward passed before backwards pass can start");
     }
     let transposed_input = l.input.as_ref().unwrap().t().to_owned();
-    let d_w = transposed_input.dot(gradient);
+    // fel ordning igen?????
+    let d_w = transposed_input.dot(gradient) / (l.input.as_ref().unwrap().dim().0 as f32);
+    //println!("Weights dims: {:?}", l.weights.dim());
+    //println!("inputs: {:?}", transposed_input);
+    //println!("gradient: {:?}", gradient);
 
     // input derivate
+    // Här med ???????
     let d_x = gradient.dot(&l.weights.t().to_owned());
     // Update weights and bias
     l.weights -= &(d_w * learning_rate);
     // Bias becomes a bit weird with dimensions
-    l.bias -= &(gradient.sum_axis(Axis(0)) * learning_rate);
+    //l.bias -= &(gradient.sum_axis(Axis(0)) * learning_rate);
     *gradient = d_x;
 }
 pub fn relu_backward(l: &mut Layer, gradient: &mut Array2<f32>) {
-    let d_x = gradient.map(|x| if *x > 0.0 { 1.0 } else { 0.0 });
-    *gradient = d_x;
+    let d_x = l
+        .input
+        .as_ref()
+        .unwrap()
+        .mapv(|x| if x > 0.0 { 1.0 } else { 0.0 });
+    *gradient *= &d_x;
 }
 
 // Fuse together cross entropy loss and softmax for calculating backwards, much easier that way
@@ -196,6 +205,7 @@ pub fn evaluate(
     let mut correct_predictions = 0;
 
     let batch_num = test_data.dim().0 as i32 / batch_size;
+    println!("Evaluation started: {:?}", test_data.dim());
 
     for batch in 0..batch_num {
         let mut batched_data = get_batch(batch_size, batch, &test_data);
